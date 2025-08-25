@@ -1,3 +1,4 @@
 deploy.static.akamaitechnologies.com
 gamedownloads.rockstargames.com
 rockstargames.com
+freesound.org
