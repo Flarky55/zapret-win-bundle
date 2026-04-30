@@ -5,45 +5,39 @@
 @rem ЕСЛИ НИЧЕГО НЕ ПОНИМАЕТЕ - НЕ ТРОГАЙТЕ ЭТОТ ФАЙЛ, ОТКАЖИТЕСЬ ОТ ИСПОЛЬЗОВАНИЯ СЛУЖБЫ. ИНАЧЕ БУДЕТЕ ПИСАТЬ ПОТОМ ВОПРОСЫ "У МЕНЯ ПРОПАЛ ИНТЕРНЕТ , КАК ВОССТАНОВИТЬ"
 
 set ARGS=^
---wf-tcp-out=80,443  ^
---lua-init=@\"%~dp0lua\zapret-lib.lua\" --lua-init=@\"%~dp0lua\zapret-antidpi.lua\" ^
+--wf-tcp-out=80,443 --wf-udp-out=1024-65535 ^
+--lua-init=@\"%~dp0lua\zapret-lib.lua\" --lua-init=@\"%~dp0lua\zapret-antidpi.lua\" --lua-init=@\"%~dp0lua\zapret-me.lua\" ^
 --lua-init=\"fake_default_tls = tls_mod(fake_default_tls,'rnd,rndsni')\" ^
 --blob=quic_google:@\"%~dp0files\quic_initial_www_google_com.bin\" ^
+--blob=tls_4pda:@\"%~dp0files\tls_clienthello_4pda_to.bin\" ^
 --wf-raw-part=@\"%~dp0windivert.filter\windivert_part.discord_media.txt\" ^
 --wf-raw-part=@\"%~dp0windivert.filter\windivert_part.stun.txt\" ^
 --wf-raw-part=@\"%~dp0windivert.filter\windivert_part.wireguard.txt\" ^
 --wf-raw-part=@\"%~dp0windivert.filter\windivert_part.quic_initial_ietf.txt\" ^
---filter-tcp=80 --filter-l7=http ^
-  --out-range=-d10 ^
-  --payload=http_req ^
-   --lua-desync=fake:blob=fake_default_http:ip_autottl=-2,3-20:ip6_autottl=-2,3-20:tcp_md5 ^
-   --lua-desync=fakedsplit:ip_autottl=-2,3-20:ip6_autottl=-2,3-20:tcp_md5 ^
-  --new ^
 --filter-tcp=443 --filter-l7=tls --hostlist=\"%~dp0files\list-youtube.txt\" ^
   --out-range=-d10 ^
   --payload=tls_client_hello ^
-   --lua-desync=fake:blob=fake_default_tls:tcp_md5:repeats=11:tls_mod=rnd,dupsid,sni=www.google.com ^
-   --lua-desync=multidisorder:pos=1,midsld ^
+   --lua-desync=fake:blob=fake_default_tls:tls_mod=sni=www.google.com:tcp_ts=-600000 ^
   --new ^
---filter-tcp=443 --filter-l7=tls ^
+--filter-tcp=443 --filter-l7=tls --hostlist-exclude=\"%~dp0files\list-exclude.txt\" ^
   --out-range=-d10 ^
   --payload=tls_client_hello ^
-   --lua-desync=fake:blob=fake_default_tls:tcp_md5:tcp_seq=-10000:repeats=6 ^
-   --lua-desync=multidisorder:pos=midsld ^
+   --lua-desync=fake:blob=tls_4pda:tcp_ts=-600000 ^
   --new ^
 --filter-udp=443 --filter-l7=quic --hostlist=\"%~dp0files\list-youtube.txt\" ^
   --payload=quic_initial ^
    --lua-desync=fake:blob=quic_google:repeats=11 ^
   --new ^
---filter-udp=443 --filter-l7=quic ^
-  --payload=quic_initial ^
-   --lua-desync=fake:blob=fake_default_quic:repeats=11 ^
+--filter-l7=stun,discord ^
+  --payload=stun,discord_ip_discovery ^
+   --lua-desync=fake:blob=0x00000000000000000000000000000000:repeats=2 ^
   --new ^
---filter-l7=wireguard,stun,discord ^
-  --payload=wireguard_initiation,wireguard_cookie,stun,discord_ip_discovery ^
-   --lua-desync=fake:blob=0x00000000000000000000000000000000:repeats=2
+--filter-udp=1024-65535 ^
+  --out-range=^<n2 ^
+  --payload=unknown ^
+    --lua-desync=fake_unknown:blob=quic_google:repeats=12
 
-rem call :srvinst winws1
+call :srvinst winws1
 set ARGS=--wf-raw-part=@\"%~dp0windivert.filter\windivert_part.wireguard.txt\" ^
 --filter-l7=discord,stun --dpi-desync=fake
 rem call :srvinst winws2

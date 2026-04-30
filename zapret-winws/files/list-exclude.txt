@@ -1,0 +1,12 @@
+steampowered.com
+steamstatic.com
+steamusercontent.com
+rockstargames.com
+chatgpt.com
+gstatic.com
+apis.google.com
+payberry.ru
+valvesoftware.com
+hoppscotch.io
+qwen.ai
+grok.com
