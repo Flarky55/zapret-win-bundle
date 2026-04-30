@@ -25,7 +25,7 @@ start "zapret2: me" /min "%~dp0winws2.exe" ^
   --new ^
 --filter-l7=wireguard,stun,discord ^
   --payload=wireguard_initiation,wireguard_cookie,stun,discord_ip_discovery ^
-   --lua-desync=fake:blob=0x00000000000000000000000000000000:repeats=2 ^
+   --lua-desync=fake:blob=quic_google:repeats=2 ^
   --new ^
 --filter-udp=1024-65535 ^
   --out-range="<n2" ^
