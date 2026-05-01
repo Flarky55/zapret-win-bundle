@@ -907,6 +907,11 @@ function test_ifaddrs(opts)
 	end
 end
 
+function print_current_time()
+	local sec,nsec = clock_gettime()
+	local t = sec + nsec/1000000000;
+	print("time: "..t)
+end
 function timer_info_print(tinfo)
 	print(" timer_info.name="..tinfo.name)
 	print(" timer_info.func="..tinfo.func)
@@ -921,11 +926,13 @@ end
 
 function timer1(name, data)
 	print("timer "..name.." fired. data="..tostring(data))
+	print_current_time()
 	timer_info_print_by_name(name)
 end
 function timer2(name, data)
 	data.n = data.n+1
 	print("timer "..name.." fired. data.n="..tostring(data.n))
+	print_current_time()
 	timer_info_print_by_name(name)
 	if data.n>=4 then
 		timer_del(name)
@@ -942,6 +949,7 @@ function test_timer(opts)
 		print("TIMER "..i.." :")
 		timer_info_print_by_name(name)
 	end
+	print_current_time()
 	print()
 end
 
