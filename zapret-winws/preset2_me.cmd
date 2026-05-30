@@ -1,5 +1,5 @@
 start "zapret2: me" /min "%~dp0winws2.exe" ^
---wf-tcp-out=80,443 --wf-udp-out=1024-65535 ^
+--wf-tcp-out=80,443 --wf-udp-out=1024-65535 --debug ^
 --lua-init=@"%~dp0lua\zapret-lib.lua" --lua-init=@"%~dp0lua\zapret-antidpi.lua" --lua-init=@"%~dp0lua\zapret-me.lua" ^
 --lua-init="fake_default_tls = tls_mod(fake_default_tls,'rnd,rndsni')" ^
 --blob=quic_google:@"%~dp0files\quic_initial_www_google_com.bin" ^
@@ -11,7 +11,7 @@ start "zapret2: me" /min "%~dp0winws2.exe" ^
 --filter-tcp=443 --filter-l7=tls --hostlist="%~dp0files\list-youtube.txt"  ^
   --out-range=-d10 ^
   --payload=tls_client_hello ^
-   --lua-desync=fake:blob=fake_default_tls:tls_mod=sni=www.google.com:tcp_ts=-600000 ^
+   --lua-desync=hostfakesplit:host=google.com:tcp_ts=-60000 ^
   --new ^
 --filter-tcp=443 --filter-l7=tls --hostlist-exclude="%~dp0files\list-exclude.txt" ^
   --out-range=-d10 ^
