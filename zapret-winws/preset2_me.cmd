@@ -1,5 +1,5 @@
-start "zapret2: me" /min "%~dp0winws2.exe" ^
---wf-tcp-out=80,443 --wf-udp-out=1024-65535 --debug ^
+start "zapret2: me" /min "%~dp0winws2.exe" --debug ^
+--wf-tcp-out=80,443 --wf-udp-out=1024-65535 ^
 --lua-init=@"%~dp0lua\zapret-lib.lua" --lua-init=@"%~dp0lua\zapret-antidpi.lua" --lua-init=@"%~dp0lua\zapret-me.lua" ^
 --lua-init="fake_default_tls = tls_mod(fake_default_tls,'rnd,rndsni')" ^
 --blob=quic_google:@"%~dp0files\quic_initial_www_google_com.bin" ^
@@ -8,26 +8,29 @@ start "zapret2: me" /min "%~dp0winws2.exe" ^
 --wf-raw-part=@"%~dp0windivert.filter\windivert_part.stun.txt" ^
 --wf-raw-part=@"%~dp0windivert.filter\windivert_part.wireguard.txt" ^
 --wf-raw-part=@"%~dp0windivert.filter\windivert_part.quic_initial_ietf.txt" ^
---filter-tcp=443 --filter-l7=tls --hostlist="%~dp0files\list-youtube.txt"  ^
+--filter-tcp=443 --filter-l7=tls --hostlist="%~dp0files\list-youtube.txt" --hostlist="%~dp0files\list-roblox.txt" ^
   --out-range=-d10 ^
   --payload=tls_client_hello ^
-   --lua-desync=hostfakesplit:host=google.com:tcp_ts=-60000 ^
+   --lua-desync=hostfakesplit:host=google.com:tcp_ts=-600000 ^
   --new ^
---filter-tcp=443 --filter-l7=tls --hostlist-exclude="%~dp0files\list-exclude.txt" ^
+--filter-tcp=443 --filter-l7=tls --ipset="%~dp0files\ipset-include.txt" ^
   --out-range=-d10 ^
   --payload=tls_client_hello ^
-   --lua-desync=fake:blob=tls_4pda:tcp_ts=-600000:repeats=6 ^
+   --lua-desync=fake:blob=tls_4pda:tcp_ts=-600000 ^
   --new ^
 --filter-udp=443 --filter-l7=quic --hostlist="%~dp0files\list-youtube.txt" ^
-  --out-range=-d10 ^
   --payload=quic_initial ^
-   --lua-desync=fake:blob=quic_google:repeats=11 ^
+   --lua-desync=fake:blob=quic_google ^
+  --new ^
+--filter-udp=443 --filter-l7=quic ^
+  --payload=quic_initial ^
+   --lua-desync=fake:blob=fake_default_quic:repeats=11 ^
   --new ^
 --filter-l7=wireguard,stun,discord ^
   --payload=wireguard_initiation,wireguard_cookie,stun,discord_ip_discovery ^
-   --lua-desync=fake:blob=quic_google:repeats=2 ^
+   --lua-desync=fake:blob=quic_google ^
   --new ^
 --filter-udp=1024-65535 ^
   --out-range="<n2" ^
   --payload=unknown ^
-    --lua-desync=fake_unknown:blob=quic_google:repeats=12
+    --lua-desync=fake_unknown:blob=quic_google
