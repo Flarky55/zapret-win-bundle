@@ -5,7 +5,7 @@
 @rem ЕСЛИ НИЧЕГО НЕ ПОНИМАЕТЕ - НЕ ТРОГАЙТЕ ЭТОТ ФАЙЛ, ОТКАЖИТЕСЬ ОТ ИСПОЛЬЗОВАНИЯ СЛУЖБЫ. ИНАЧЕ БУДЕТЕ ПИСАТЬ ПОТОМ ВОПРОСЫ "У МЕНЯ ПРОПАЛ ИНТЕРНЕТ , КАК ВОССТАНОВИТЬ"
 
 set ARGS=^
---wf-tcp-out=80,443 --wf-udp-out=1024-65535 ^
+--wf-tcp-out=80,443 --wf-udp-out=443,19294-19344,50000-50100 ^
 --lua-init=@\"%~dp0lua\zapret-lib.lua\" --lua-init=@\"%~dp0lua\zapret-antidpi.lua\" --lua-init=@\"%~dp0lua\zapret-me.lua\" ^
 --lua-init=\"fake_default_tls = tls_mod(fake_default_tls,'rnd,rndsni')\" ^
 --blob=quic_google:@\"%~dp0files\quic_initial_www_google_com.bin\" ^
@@ -14,7 +14,7 @@ set ARGS=^
 --wf-raw-part=@\"%~dp0windivert.filter\windivert_part.stun.txt\" ^
 --wf-raw-part=@\"%~dp0windivert.filter\windivert_part.wireguard.txt\" ^
 --wf-raw-part=@\"%~dp0windivert.filter\windivert_part.quic_initial_ietf.txt\" ^
---filter-tcp=443 --filter-l7=tls --hostlist=\"%~dp0files\list-youtube.txt\" --hostlist=\"%~dp0files\list-roblox.txt\" ^
+--filter-tcp=443 --filter-l7=tls --hostlist=\"%~dp0files\list-youtube.txt\" ^
   --out-range=-d10 ^
   --payload=tls_client_hello ^
    --lua-desync=hostfakesplit:host=google.com:tcp_ts=-600000 ^
@@ -26,20 +26,15 @@ set ARGS=^
   --new ^
 --filter-udp=443 --filter-l7=quic --hostlist=\"%~dp0files\list-youtube.txt\" ^
   --payload=quic_initial ^
-   --lua-desync=fake:blob=quic_google ^
+   --lua-desync=fake:blob=quic_google:repeats=11 ^
   --new ^
 --filter-udp=443 --filter-l7=quic ^
   --payload=quic_initial ^
    --lua-desync=fake:blob=fake_default_quic:repeats=11 ^
   --new ^
---filter-l7=wireguard,stun,discord ^
-  --payload=wireguard_initiation,wireguard_cookie,stun,discord_ip_discovery ^
-   --lua-desync=fake:blob=quic_google ^
-  --new ^
---filter-udp=1024-65535 ^
-  --out-range=^<n2 ^
-  --payload=unknown ^
-    --lua-desync=fake_unknown:blob=quic_google
+--filter-udp=19294-19344,50000-50100 --filter-l7=stun,discord ^
+  --payload=stun,discord_ip_discovery ^
+   --lua-desync=fake:blob=quic_google:repeats=3 ^
 
 call :srvinst winws1
 set ARGS=--wf-raw-part=@\"%~dp0windivert.filter\windivert_part.wireguard.txt\" ^
