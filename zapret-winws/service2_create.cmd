@@ -34,7 +34,7 @@ set ARGS=^
   --new ^
 --filter-udp=19294-19344,50000-50100 --filter-l7=stun,discord ^
   --payload=stun,discord_ip_discovery ^
-   --lua-desync=fake:blob=quic_google:repeats=3 ^
+   --lua-desync=fake:blob=quic_google:repeats=3
 
 call :srvinst winws1
 set ARGS=--wf-raw-part=@\"%~dp0windivert.filter\windivert_part.wireguard.txt\" ^
