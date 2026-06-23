@@ -30,7 +30,7 @@ set ARGS=^
   --new ^
 --filter-udp=443 --filter-l7=quic ^
   --payload=quic_initial ^
-   --lua-desync=fake:blob=fake_default_quic:repeats=11 ^
+   --lua-desync=fake:blob=quic_google:repeats=11 ^
   --new ^
 --filter-udp=19294-19344,50000-50100 --filter-l7=stun,discord ^
   --payload=stun,discord_ip_discovery ^
