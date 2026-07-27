@@ -74,7 +74,10 @@ killwait()
 {
 	# $1 - signal (-9, -2, ...)
 	# $2 - pid
-	kill $1 $2
+	local KILL=kill
+	# avoid internal bash kill in cygwin to support -f
+	[ "$UNAME" = "CYGWIN" ] && KILL=/bin/kill
+	$KILL $1 $2
 	# suppress job kill message
 	wait $2 2>/dev/null
 }
@@ -940,6 +943,7 @@ pktws_ipt_unprepare_udp()
 	pktws_ipt_unprepare udp $1
 }
 
+
 pktws_start()
 {
 	case "$UNAME" in
@@ -952,17 +956,25 @@ pktws_start()
 		CYGWIN)
 			# allow multiple PKTWS instances with the same wf filter but different ipset
 			# some methods require empty acks
-			"$WINWS2" --wf-dup-check=0 --wf-tcp-empty=1 $WF --ipset="$IPSET_FILE" --lua-init=@"$ZAPRET_BASE/lua/zapret-lib.lua" --lua-init=@"$ZAPRET_BASE/lua/zapret-antidpi.lua" "$@" >/dev/null &
+			# use guard timer to kill unmanaged pktws instances
+			"$WINWS2" --wf-dup-check=0 --wf-tcp-empty=1 $WF --ipset="$IPSET_FILE" \
+				--lua-init="timer_set('exit_guard',function(name,data) io.stderr:write('exit_guard\n'); os.exit(3000); end,20000,true)" \
+				--lua-init=@"$ZAPRET_BASE/lua/zapret-lib.lua" --lua-init=@"$ZAPRET_BASE/lua/zapret-antidpi.lua" "$@" >/dev/null &
 			;;
 	esac
 	PID=$!
 	# give some time to initialize
 	minsleep
 }
+
 ws_kill()
 {
+	local sig
 	[ -z "$PID" ] || {
-		killwait -9 $PID 2>/dev/null
+		sig=-9
+		# use fast kill using TerminateProcess() in cygwin
+		[ "$UNAME" = "CYGWIN" ] && sig=-f
+		killwait $sig $PID 2>/dev/null
 		PID=
 	}
 }
@@ -1089,7 +1101,7 @@ pktws_curl_test()
 }
 strategy_append_extra_pktws()
 {
-	strategy="${strategy:+${PKTWS_EXTRA_PRE:+$PKTWS_EXTRA_PRE }${PKTWS_EXTRA_PRE_1:+"$PKTWS_EXTRA_PRE_1" }${PKTWS_EXTRA_PRE_2:+"$PKTWS_EXTRA_PRE_2" }${PKTWS_EXTRA_PRE_3:+"$PKTWS_EXTRA_PRE_3" }${PKTWS_EXTRA_PRE_4:+"$PKTWS_EXTRA_PRE_4" }${PKTWS_EXTRA_PRE_5:+"$PKTWS_EXTRA_PRE_5" }${PKTWS_EXTRA_PRE_6:+"$PKTWS_EXTRA_PRE_6" }${PKTWS_EXTRA_PRE_7:+"$PKTWS_EXTRA_PRE_7" }${PKTWS_EXTRA_PRE_8:+"$PKTWS_EXTRA_PRE_8" }${PKTWS_EXTRA_PRE_9:+"$PKTWS_EXTRA_PRE_9" }$strategy${PKTWS_EXTRA_POST:+ $PKTWS_EXTRA_POST}${PKTWS_EXTRA_1:+ "$PKTWS_EXTRA_POST_1"}${PKTWS_EXTRA_POST_2:+ "$PKTWS_EXTRA_POST_2"}${PKTWS_EXTRA_POST_3:+ "$PKTWS_EXTRA_POST_3"}${PKTWS_EXTRA_POST_4:+ "$PKTWS_EXTRA_POST_4"}${PKTWS_EXTRA_POST_5:+ "$PKTWS_EXTRA_POST_5"}${PKTWS_EXTRA_POST_6:+ "$PKTWS_EXTRA_POST_6"}${PKTWS_EXTRA_POST_7:+ "$PKTWS_EXTRA_POST_7"}${PKTWS_EXTRA_POST_8:+ "$PKTWS_EXTRA_POST_8"}${PKTWS_EXTRA_POST_9:+ "$PKTWS_EXTRA_POST_9"}}"
+	strategy="${strategy:+${PKTWS_EXTRA_PRE:+$PKTWS_EXTRA_PRE }${PKTWS_EXTRA_PRE_1:+"$PKTWS_EXTRA_PRE_1" }${PKTWS_EXTRA_PRE_2:+"$PKTWS_EXTRA_PRE_2" }${PKTWS_EXTRA_PRE_3:+"$PKTWS_EXTRA_PRE_3" }${PKTWS_EXTRA_PRE_4:+"$PKTWS_EXTRA_PRE_4" }${PKTWS_EXTRA_PRE_5:+"$PKTWS_EXTRA_PRE_5" }${PKTWS_EXTRA_PRE_6:+"$PKTWS_EXTRA_PRE_6" }${PKTWS_EXTRA_PRE_7:+"$PKTWS_EXTRA_PRE_7" }${PKTWS_EXTRA_PRE_8:+"$PKTWS_EXTRA_PRE_8" }${PKTWS_EXTRA_PRE_9:+"$PKTWS_EXTRA_PRE_9" }$strategy${PKTWS_EXTRA_POST:+ $PKTWS_EXTRA_POST}${PKTWS_EXTRA_POST_1:+ "$PKTWS_EXTRA_POST_1"}${PKTWS_EXTRA_POST_2:+ "$PKTWS_EXTRA_POST_2"}${PKTWS_EXTRA_POST_3:+ "$PKTWS_EXTRA_POST_3"}${PKTWS_EXTRA_POST_4:+ "$PKTWS_EXTRA_POST_4"}${PKTWS_EXTRA_POST_5:+ "$PKTWS_EXTRA_POST_5"}${PKTWS_EXTRA_POST_6:+ "$PKTWS_EXTRA_POST_6"}${PKTWS_EXTRA_POST_7:+ "$PKTWS_EXTRA_POST_7"}${PKTWS_EXTRA_POST_8:+ "$PKTWS_EXTRA_POST_8"}${PKTWS_EXTRA_POST_9:+ "$PKTWS_EXTRA_POST_9"}}"
 }
 
 
@@ -1576,10 +1588,12 @@ ask_params()
 				echo "TLS 1.3 only strategy is better than nothing."
 				ask_yes_no_var ENABLE_HTTPS_TLS13 "check https tls 1.3"
 			}
-		else
-			echo
-			echo "installed curl version does not support TLS 1.3 . tests disabled."
 		fi
+	}
+	[ "$ENABLE_HTTPS_TLS13" = 1 -a -z "$TLS13" ] && {
+			echo
+			echo "WARNING ! installed curl version does not support TLS 1.3 . tests disabled."
+			ENABLE_HTTPS_TLS13=0
 	}
 
 	[ -n "$ENABLE_HTTP3" ] || {
@@ -1591,10 +1605,12 @@ ask_params()
 				echo "make sure target domain(s) support QUIC or result will be negative in any case"
 				ask_yes_no_var ENABLE_HTTP3 "check http3 QUIC"
 			}
-		else
-			echo
-			echo "installed curl version does not support http3 QUIC. tests disabled."
 		fi
+	}
+	[ "$ENABLE_HTTP3" = 1 -a -z "$HTTP3" ] && {
+			echo
+			echo "WARNING ! installed curl version does not support http3 QUIC. tests disabled."
+			ENABLE_HTTP3=0
 	}
 
 	[ -n "$REPEATS" ] || {
@@ -1826,6 +1842,16 @@ check_dns()
 	return $r
 }
 
+block_signals()
+{
+	# prevent signal function reenter
+	trap '' QUIT TERM HUP PIPE INT
+}
+untrap()
+{
+	trap - QUIT TERM HUP PIPE INT
+}
+
 unprepare_all()
 {
 	# make sure we are not in a middle state that impacts connectivity
@@ -1841,18 +1867,23 @@ unprepare_all()
 }
 sigint()
 {
+	block_signals
 	echo
 	echo terminating...
 	unprepare_all
+	# exitp can wait for the user input. restore default signal behavior without trap
+	untrap
 	exitp 1
 }
 sigint_cleanup()
 {
+	block_signals
 	cleanup
 	exit 1
 }
 sigsilent()
 {
+	block_signals
 	# must not write anything here to stdout
 	unprepare_all
 	exit 1
@@ -1874,8 +1905,7 @@ PID=
 NREPORT=
 unset WF
 trap sigint INT
-trap sigsilent PIPE
-trap sigsilent HUP
+trap sigsilent PIPE HUP TERM QUIT
 for dom in $DOMAINS; do
 	for IPV in $IPVS; do
 		configure_ip_version
@@ -1889,9 +1919,7 @@ for dom in $DOMAINS; do
 		[ "$ENABLE_HTTP3" = 1 ] && check_domain_http3 $dom
 	done
 done
-trap - HUP
-trap - PIPE
-trap - INT
+untrap
 
 cleanup
 
