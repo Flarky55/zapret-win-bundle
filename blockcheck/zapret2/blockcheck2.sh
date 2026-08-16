@@ -49,7 +49,6 @@ IPFW_RULE_NUM=${IPFW_RULE_NUM:-$(($$ % $IPFW_RULE_MAX + 1))}
 IPFW_DIVERT_PORT=${IPFW_DIVERT_PORT:-$(($$ % 64536 + 1000))}
 QNUM=${QNUM:-$(($$ % 64536 + 1000))}
 
-IPSET_FILE=/tmp/blockcheck_ipset_$$.txt
 PARALLEL_OUT=/tmp/zapret_parallel_$$
 HDRTEMP=/tmp/zapret-hdr-$$
 NFT_TABLE=blockcheck$$
@@ -822,7 +821,7 @@ pktws_ipt_prepare()
 	# $2 - port
 	# $3 - ip list
 
-	local ip
+	local ip v=
 
 	case "$FWTYPE" in
 		iptables)
@@ -842,10 +841,12 @@ pktws_ipt_prepare()
 			opf_prepare_dvtws $1 $2 "$3"
 			;;
 		windivert)
+			[ "$IPV" = 6 ] && v="v6"
 			WF="--wf-l3=ipv${IPV} --wf-${1}-out=$2"
-			rm -f "$IPSET_FILE"
+			WFRAWF=
 			for ip in $3; do
-				echo $ip >>"$IPSET_FILE"
+				[ -n "$WFRAWF" ] && WFRAWF="$WFRAWF or "
+				WFRAWF="${WFRAWF}ip${v}.DstAddr=$ip or ip${v}.SrcAddr=$ip"
 			done
 			;;
 
@@ -874,8 +875,7 @@ pktws_ipt_unprepare()
 			pf_restore
 			;;
 		windivert)
-			unset WF
-			rm -f "$IPSET_FILE"
+			unset WF WFRAWF
 			;;
 	esac
 }
@@ -957,7 +957,7 @@ pktws_start()
 			# allow multiple PKTWS instances with the same wf filter but different ipset
 			# some methods require empty acks
 			# use guard timer to kill unmanaged pktws instances
-			"$WINWS2" --wf-dup-check=0 --wf-tcp-empty=1 $WF --ipset="$IPSET_FILE" \
+			"$WINWS2" --wf-dup-check=0 --wf-tcp-empty=1 $WF --wf-raw-filter="$WFRAWF" \
 				--lua-init="timer_set('exit_guard',function(name,data) io.stderr:write('exit_guard\n'); os.exit(3000); end,20000,true)" \
 				--lua-init=@"$ZAPRET_BASE/lua/zapret-lib.lua" --lua-init=@"$ZAPRET_BASE/lua/zapret-antidpi.lua" "$@" >/dev/null &
 			;;
