@@ -5,24 +5,20 @@
 @rem ЕСЛИ НИЧЕГО НЕ ПОНИМАЕТЕ - НЕ ТРОГАЙТЕ ЭТОТ ФАЙЛ, ОТКАЖИТЕСЬ ОТ ИСПОЛЬЗОВАНИЯ СЛУЖБЫ. ИНАЧЕ БУДЕТЕ ПИСАТЬ ПОТОМ ВОПРОСЫ "У МЕНЯ ПРОПАЛ ИНТЕРНЕТ , КАК ВОССТАНОВИТЬ"
 
 set ARGS=^
---wf-tcp-out=80,443 --wf-udp-out=443,19294-19344,50000-50100 ^
---lua-init=@\"%~dp0lua\zapret-lib.lua\" --lua-init=@\"%~dp0lua\zapret-antidpi.lua\" --lua-init=@\"%~dp0lua\zapret-me.lua\" ^
+--wf-tcp-out=80,443 ^
+--lua-init=@\"%~dp0lua\zapret-lib.lua\" --lua-init=@\"%~dp0lua\zapret-antidpi.lua\" ^
 --lua-init=\"fake_default_tls = tls_mod(fake_default_tls,'rnd,rndsni')\" ^
 --blob=quic_google:@\"%~dp0files\quic_initial_www_google_com.bin\" ^
---blob=tls_4pda:@\"%~dp0files\tls_clienthello_4pda_to.bin\" ^
 --wf-raw-part=@\"%~dp0windivert.filter\windivert_part.discord_media.txt\" ^
 --wf-raw-part=@\"%~dp0windivert.filter\windivert_part.stun.txt\" ^
---wf-raw-part=@\"%~dp0windivert.filter\windivert_part.wireguard.txt\" ^
 --wf-raw-part=@\"%~dp0windivert.filter\windivert_part.quic_initial_ietf.txt\" ^
 --filter-tcp=443 --filter-l7=tls --hostlist=\"%~dp0files\list-youtube.txt\" ^
-  --out-range=-d10 ^
   --payload=tls_client_hello ^
    --lua-desync=hostfakesplit:host=google.com:tcp_ts=-600000 ^
   --new ^
 --filter-tcp=443 --filter-l7=tls --ipset=\"%~dp0files\ipset-include.txt\" ^
-  --out-range=-d10 ^
   --payload=tls_client_hello ^
-   --lua-desync=fake:blob=tls_4pda:tcp_ts=-600000 ^
+    --lua-desync=fakedsplit:pos=sniext+1:tcp_seq=-3000 ^
   --new ^
 --filter-udp=443 --filter-l7=quic --hostlist=\"%~dp0files\list-youtube.txt\" ^
   --payload=quic_initial ^
@@ -32,7 +28,7 @@ set ARGS=^
   --payload=quic_initial ^
    --lua-desync=fake:blob=quic_google:repeats=11 ^
   --new ^
---filter-udp=19294-19344,50000-50100 --filter-l7=stun,discord ^
+--filter-l7=stun,discord ^
   --payload=stun,discord_ip_discovery ^
    --lua-desync=fake:blob=quic_google:repeats=3
 
